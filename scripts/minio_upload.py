@@ -90,8 +90,27 @@ def get_file_extension(file_path):
     return os.path.splitext(file_path)[1].lower()
 
 
+def get_content_type(file_path):
+    """根据文件扩展名获取 Content-Type"""
+    ext = get_file_extension(file_path)
+    content_types = {
+        # 图片
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+        '.gif': 'image/gif', '.webp': 'image/webp', '.bmp': 'image/bmp',
+        '.svg': 'image/svg+xml',
+        # 视频
+        '.mp4': 'video/mp4', '.webm': 'video/webm', '.mov': 'video/quicktime',
+        '.avi': 'video/x-msvideo', '.mkv': 'video/x-matroska',
+        # 音频
+        '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.m4a': 'audio/mp4',
+        # 文档
+        '.pdf': 'application/pdf', '.txt': 'text/plain',
+    }
+    return content_types.get(ext, 'application/octet-stream')
+
+
 def upload_file(client, bucket, file_path, object_name=None, expiry_days=7):
-    """上传文件到 MinIO"""
+    """上传文件到 MinIO，设置为 inline 模式以便浏览器预览"""
     if not os.path.exists(file_path):
         print(f"Error: File not found: {file_path}", file=sys.stderr)
         sys.exit(1)
@@ -104,9 +123,18 @@ def upload_file(client, bucket, file_path, object_name=None, expiry_days=7):
         print(f"Error: Bucket '{bucket}' does not exist", file=sys.stderr)
         sys.exit(1)
     
-    # 上传文件
+    # 获取 Content-Type
+    content_type = get_content_type(file_path)
+    
+    # 上传文件，设置 Content-Disposition: inline 以便浏览器直接预览
     try:
-        client.fput_object(bucket, object_name, file_path)
+        client.fput_object(
+            bucket, 
+            object_name, 
+            file_path,
+            content_type=content_type,
+            metadata={'Content-Disposition': 'inline'}
+        )
     except S3Error as e:
         print(f"Error uploading file: {e}", file=sys.stderr)
         sys.exit(1)
